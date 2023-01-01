@@ -1,3 +1,4 @@
+name: lints workflows
 on:
   pull_request:
   push:
