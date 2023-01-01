@@ -48,4 +48,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/projet_devops:${{env.VERSION_TAGS}}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/Super-calculato1:${{env.VERSION_TAGS}}
