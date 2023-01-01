@@ -1,0 +1,74 @@
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+jobs:
+# cette partie doit s'executer que 
+# si il y a une pull request
+  lint:
+    name: Lint Code Base
+    runs-on: ubuntu-latest
+    if: (github.actor != 'dependabot[bot]' && github.event_name == 'pull_request') # skip execution for dependabot
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Lint Code Base'
+        uses: github/super-linter/slim@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false # disabled so that the scan is faster
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # needed to get access to PR
+# Cette partie 
+# fait une analyse static de code
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    container: # Use a container
+      image: returntocorp/semgrep:1.1.0
+    # don't execute this workflow for dependabot pr
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - name: "Checkout source"
+        uses: actions/checkout@v3
+      
+      - name: "Execute semgrep"
+        run: semgrep ci --sarif --output=semgrep.sarif
+        env:
+          # Specify the ruleset to use
+          SEMGREP_RULES: p/default
+
+      - name: "Upload SARIF file for GitHub CodeQL"
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+# Cette partie 
+# check l'image docker
+  hadolint:
+    name: "Hadolint scan"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    # don't execute this workflow for dependabot pr d
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v3
+
+      - name: "Run hadolint"
+        uses: hadolint/hadolint-action@v2.1.0
+        with:
+          dockerfile: ./Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+
+      - name: "Upload analysis results to GitHub"
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
+          wait-for-processing: true
